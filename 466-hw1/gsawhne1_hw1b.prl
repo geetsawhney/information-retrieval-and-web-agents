@@ -1,0 +1,390 @@
+#!/usr/local/bin/perl
+
+my @test_lines = ();    # the current line that we are testing
+my @real_lines = ();    # the correct classification for the current line
+my $numb_lines = 0;     # the number of lines in the block that we testing
+
+my $correct   = 0;      # number of correct classifications
+my $incorrect = 0;      # number of incorrect classifications
+my $line      = undef;
+
+my @incorrect_arr;      # number of Incorrectly identified in each classes
+my @correct_arr;        # number of correctly identified in each class
+my $line_count = 0;
+
+while ( defined( $line = <STDIN> ) ) {
+    $line_count++;
+    chomp $line;
+
+    if ( $line =~ /^#BLANK#/ ) {
+        &process_segment if $numb_lines;    # if we are at a blank line then
+                                            # it is time to process the pre-
+                                            # vious block
+                                            # print $line, "\n";
+
+        @test_lines = ();    # make sure that we clear memory here or else
+        @real_lines = ();    #  these arrays may hold old data which will
+        $numb_lines = 0;     #  screw up calculations of their length
+    }
+    else {
+
+        ( $test_lines[$numb_lines] ) = ( $line =~ m/^[^\t]+\t(.*)/ );
+        ( $real_lines[$numb_lines] ) = ( $line =~ m/^([^\t]+)\t/ );
+
+        $numb_lines += 1;
+    }
+}
+
+#Print all efficiency of each rule
+for ( my $i = 0 ; $i < @correct_arr ; $i++ ) {
+
+    if ( not defined( $correct_arr[$i] ) ) {
+        $correct_arr[$i] = 0;
+    }
+    if ( not defined( $incorrect_arr[$i] ) ) {
+        $incorrect_arr[$i] = 0;
+    }
+
+    if ( ( $correct_arr[$i] + $incorrect_arr[$i] ) == 0 ) {
+        next;
+    }
+    print "Rule ", $i + 1, ": ";
+    print "\n\t\t#USED:\t\t\t", ( $correct_arr[$i] + $incorrect_arr[$i] );
+    print "\n\t\t% of Total used:\t";
+    printf "%.3f",
+      ( $correct_arr[$i] + $incorrect_arr[$i] ) * 100 /
+      ( $correct + $incorrect );
+
+    print "%\n\t\t#Correct:\t\t",  $correct_arr[$i];
+    print "\n\t\t#Incorrect:\t\t", $incorrect_arr[$i];
+    print "\n\t\t% Correct of # Used:\t";
+    printf "%.3f",
+      $correct_arr[$i] * 100 / ( $correct_arr[$i] + $incorrect_arr[$i] );
+    print "%\n";
+    print "\t\t% Incorrect of # Used:\t";
+    printf "%.3f",
+      $incorrect_arr[$i] * 100 / ( $correct_arr[$i] + $incorrect_arr[$i] );
+    print "%\n\n";
+}
+
+print "\n### HW1B gsawhne1 - OVERALL CORRECT: ", $correct, " = ";
+printf( "%.1f", ( ( $correct * 100 ) / ( $correct + $incorrect ) ) );
+print "%   INCORRECT: ", $incorrect, " = ";
+printf( "%.1f", ( ( $incorrect * 100 ) / ( $correct + $incorrect ) ) );
+print "%\n\n\n";
+
+############################################################
+## Process segments by applying specialized detectors/
+## classifiers to the array of the text lines in the segment
+############################################################
+
+sub process_segment {
+    my $count;
+
+    if (&quoted_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 1, $real_lines[$count], "QUOTED", $test_lines[$count] );
+        }
+    }
+
+    elsif (&item_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 2, $real_lines[$count], "ITEM", $test_lines[$count] );
+        }
+    }
+    elsif (&nnhead_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 3, $real_lines[$count], "NNHEAD", $test_lines[$count] );
+        }
+    }
+
+    elsif (&sig_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 4, $real_lines[$count], "SIG", $test_lines[$count] );
+        }
+    }
+    elsif (&table_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 5, $real_lines[$count], "TABLE", $test_lines[$count] );
+        }
+    }
+    elsif (&graphic_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 6, $real_lines[$count], "GRAPHIC", $test_lines[$count] );
+        }
+
+    }
+
+    elsif (&address_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 7, $real_lines[$count], "ADDRESS", $test_lines[$count] );
+        }
+    }
+
+    elsif (&headl_detector) {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 8, $real_lines[$count], "HEADL", $test_lines[$count] );
+        }
+    }
+
+    else {
+        for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
+            &ret( 9, $real_lines[$count], "PTEXT", $test_lines[$count] );
+        }
+    }
+}
+
+sub quoted_detector {
+
+    my $score  = 0;
+    my $weight = 0.75;    # weight is a variable so that it is easy to find
+    my $cnt;              #  and change.
+
+    my $quote1 = ">";
+    my $quote2 = ":";
+    my $quote3 = "\\|>";
+
+    my $block_quote1 = "$quote1|$quote2|$quote3";
+    my $block_quote2 = "$quote1|$quote2";
+
+    my $test_quote1 = "^($block_quote1)(\s*($block_quote2))*";
+    my $test_quote2 = "^.+wrote:";
+    my $test_quote3 = "[aA-zZ ]>";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /^(@)/ )
+        {
+            $score++;
+        }
+
+    }
+    return ( $score / ( scalar @test_lines ) > $weight );
+}
+
+sub item_detector {
+
+    my $score  = 0;
+    my $weight = 0.3;    # weight is a variable so that it is easy to find
+    my $cnt;             #  and change.
+
+    my $test_quote1 = "^\\s*\\([0-9]\\)\\s*";
+    my $test_quote2 = "^\\s*-\\s";
+    my $test_quote3 = "^\\s*[0-9]\\.\\s*";
+    my $test_quote4 = "\\t+\\([0-9]\\)\\s*[aA-zZ]+";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /$test_quote4/ )
+        {
+            $score++;
+        }
+    }
+    return ( $score / ( scalar @test_lines ) > $weight );
+}
+
+sub nnhead_detector {
+
+    my $score  = 0;
+    my $weight = 0.7;    # weight is a variable so that it is easy to find
+    my $cnt;             #  and change.
+
+    my $test_quote2 = "^Subject";
+    my $test_quote3 = "^From";
+    my $test_quote4 = "^Date";
+    my $test_quote1 = "^[aA-zZ -]+:\\s+";
+
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /$test_quote4/ )
+        {
+            $score++;
+        }
+    }
+    return ( ( $score / ( scalar @test_lines ) ) > $weight );
+}
+
+sub sig_detector {
+
+    my $score  = 0;
+    my $weight = 0.15;    # weight is a variable so that it is easy to find
+    my $cnt;              #  and change.
+
+    my $test_quote5 = "^\\*{5,}";
+    my $test_quote6 = "^(\\[\\]){5,}";
+    my $test_quote7 = "^[A-Z]{3}\$";
+    my $test_quote1 = "^[\\-]{2,}";
+    my $test_quote2 = "^[\\_]{3,}";
+    my $test_quote3 = "^[\\=]{2,}";
+    my $test_quote4 = "(\\\\/){5,}";
+    my $test_quote8 = "^[\|].*[\|]\$";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote4/
+            || $test_lines[$cnt] =~ /$test_quote5/
+            || $test_lines[$cnt] =~ /$test_quote6/
+            || $test_lines[$cnt] =~ /$test_quote7/ )
+        {
+            $score++;
+        }
+    }
+    return ( $score / ( scalar @test_lines ) > $weight );
+
+}
+
+sub table_detector {
+
+    my $score  = 0;
+    my $weight = 0.15;    # weight is a variable so that it is easy to find
+    my $cnt;              #  and change.
+
+    my $test_quote4 = "^\\s*[a-zA-Z0-9.-]+\\s+[a-zA-Z0-9.\$%-]+\\s{4,}"
+      ; # this checks for Initial spaces and then some valid characters and then space
+    my $test_quote1 = "[\\|]\\s+[a-zA-Z0-9.-]+\\s+[\\|].+";
+    my $test_quote2 = "^\\s*[a-zA-Z0-9.-]+\\s{3,}[a-zA-Z0-9.-]+";
+    my $test_quote3 = "^\\s*[a-zA-Z0-9.-]+\\t+[a-zA-Z0-9.-]+";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /$test_quote4/ )
+        {
+            $score++;
+        }
+    }
+    return ( $score / ( scalar @test_lines ) > $weight );
+}
+
+sub headl_detector {
+
+    my $score  = 0;
+    my $weight = 0.78;    # weight is a variable so that it is easy to find
+    my $cnt;              #  and change.
+
+    my $test_quote2 = "^\\s+[ aA-zZ&:,*-_;!\`~]+\\s*\$";
+    my $test_quote1 = "^\\t+.+\\t+";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/ )
+        {
+            $score++;
+        }
+    }
+
+    return ( ( $score / ( scalar @test_lines ) ) > $weight );
+}
+
+sub graphic_detector {
+    my $score  = 0;
+    my $weight = 0.2;
+    my $cnt;
+
+    my $test_quote3 = "\\|";
+    my $test_quote4 = "\\*";
+    my $test_quote1 = "\\\\";
+    my $test_quote2 = "\\/";
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+        my @characters = split( //, $test_lines[$cnt] );
+        my $noncharcnt = 0;
+        my $lettercnt  = 0;
+
+        foreach my $char (@characters) {
+            if (   $char =~ /$test_quote1/
+                || $char =~ /$test_quote2/
+                || $char =~ /$test_quote3/
+                || $char =~ /$test_quote4/ )
+            {
+                $noncharcnt++;    # count number of special characters in line
+            }
+            elsif ( $char =~ /[A-Za-z0-9]/ ) {
+                $lettercnt++;     # count number of letters or numbers in line
+            }
+        }
+
+        if ( $noncharcnt > $lettercnt ) {
+            $score++
+              ; # increment score if special characters are greater than letter or numbers
+        }
+    }
+
+    return ( $score / ( scalar @test_lines ) > $weight );
+}
+
+sub address_detector {
+
+    my $score  = 0;
+    my $weight = 0.16;    # weight is a variable so that it is easy to find
+    my $cnt;              #  and change.
+
+    my $test_quote1 =
+      "^[\\t]+([aA-zZ]+[\\s]+[.]{0})+";    #words with spaces and no periods
+    my $test_quote2 = "[a-z0-9.]+\\@[a-z0-9.-]+";    # email address check
+    my $test_quote3 =
+      "\\(?([0-9]{3})\\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})";    # phone number
+    my $test_quote4 =
+      "[aA-zZ]+,\\s+[A-Z]{2}\\s+[0-9]{5}";    # city, state, and zip code
+
+    for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
+
+        if (   $test_lines[$cnt] =~ /$test_quote1/
+            || $test_lines[$cnt] =~ /$test_quote2/
+            || $test_lines[$cnt] =~ /$test_quote3/
+            || $test_lines[$cnt] =~ /$test_quote4/ )
+        {
+            # print $test_lines[$cnt],"\n";
+
+            $score++;
+        }
+    }
+    return ( ( $score / ( scalar @test_lines ) ) > $weight );
+}
+
+############################################################
+## RET - prints full line for errors and keeps score $rule
+##     - indicates the rule number responsible for the
+##     - classification
+##
+##  This is a useful debugging tool, as after each change in
+##  the program one can identify the remaining misclassified
+##  training examples and the patterns responsible for them.
+############################################################
+
+sub ret {
+
+    my $rule       = shift;    # which rule did I use here
+    my $trueclass  = shift;    # what is the true sentence class ('NEOS','EOS')
+    my $givenclass = shift;    # what is the sentence class my rule gives
+    my $line       = shift;    # the actual line tested
+
+    # if correctly  identified and PTEXT and ADDRESS are same
+    if ( $trueclass eq $givenclass
+        || ( $trueclass eq "PTEXT" && $givenclass eq "ADDRESS" ) )
+    {
+        #  printf("XX (%2d) %s\t%s\t%s\n",$rule,$givenclass,$trueclass,$line);
+        $correct_arr[ $rule - 1 ] += 1;
+        $correct++;
+    }
+    else {
+        $incorrect_arr[ $rule - 1 ] += 1;
+        $incorrect++;
+    }
+}
