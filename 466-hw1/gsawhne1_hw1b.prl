@@ -13,7 +13,7 @@ my @correct_arr;        # number of correctly identified in each class
 my $line_count = 0;
 
 while ( defined( $line = <STDIN> ) ) {
-    $line_count++;
+    $line_count++;      #increment the number of lines
     chomp $line;
 
     if ( $line =~ /^#BLANK#/ ) {
@@ -35,7 +35,7 @@ while ( defined( $line = <STDIN> ) ) {
     }
 }
 
-#Print all efficiency of each rule
+#Print all efficiency of each rule in order
 for ( my $i = 0 ; $i < @correct_arr ; $i++ ) {
 
     if ( not defined( $correct_arr[$i] ) ) {
@@ -71,7 +71,7 @@ print "\n### HW1B gsawhne1 - OVERALL CORRECT: ", $correct, " = ";
 printf( "%.1f", ( ( $correct * 100 ) / ( $correct + $incorrect ) ) );
 print "%   INCORRECT: ", $incorrect, " = ";
 printf( "%.1f", ( ( $incorrect * 100 ) / ( $correct + $incorrect ) ) );
-print "%\n\n\n";
+print "%";
 
 ############################################################
 ## Process segments by applying specialized detectors/
@@ -81,33 +81,42 @@ print "%\n\n\n";
 sub process_segment {
     my $count;
 
+    # check for Quote class
     if (&quoted_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 1, $real_lines[$count], "QUOTED", $test_lines[$count] );
         }
     }
 
+    # check for item class
     elsif (&item_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 2, $real_lines[$count], "ITEM", $test_lines[$count] );
         }
     }
+
+    # check for nnhead class
     elsif (&nnhead_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 3, $real_lines[$count], "NNHEAD", $test_lines[$count] );
         }
     }
 
+    # check for signature class
     elsif (&sig_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 4, $real_lines[$count], "SIG", $test_lines[$count] );
         }
     }
+
+    # check for table classes
     elsif (&table_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 5, $real_lines[$count], "TABLE", $test_lines[$count] );
         }
     }
+
+    # check for GRAPHIC class
     elsif (&graphic_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 6, $real_lines[$count], "GRAPHIC", $test_lines[$count] );
@@ -115,12 +124,14 @@ sub process_segment {
 
     }
 
+    # check for address class
     elsif (&address_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 7, $real_lines[$count], "ADDRESS", $test_lines[$count] );
         }
     }
 
+    # check for  headl class
     elsif (&headl_detector) {
         for ( $count = 0 ; $count < scalar @test_lines ; $count++ ) {
             &ret( 8, $real_lines[$count], "HEADL", $test_lines[$count] );
@@ -199,7 +210,6 @@ sub nnhead_detector {
     my $test_quote3 = "^From";
     my $test_quote4 = "^Date";
     my $test_quote1 = "^[aA-zZ -]+:\\s+";
-
 
     for ( $cnt = 0 ; $cnt < scalar @test_lines ; $cnt++ ) {
 

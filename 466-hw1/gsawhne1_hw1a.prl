@@ -1,7 +1,6 @@
-#!/usr/local/bin/perl -w
+#!/usr/local/bin/perl
 
 use FileHandle;
-
 
 ############################################################
 ##  SHELL FOR END-OF-SENTENCE CLASSIFIER
@@ -29,7 +28,6 @@ my @incorrect_arr=(0,0,0,0,0,0,0,0,0,0,0);
 &initialize_set( $timeterms, "$classes/timeterms" );
 &initialize_set( $sentence_internal, "$classes/sentence_internal"  );
 &initialize_set( $unlikely_proper_nouns, "$classes/unlikely_proper_nouns" );
-
 
 
 while (defined ($line = <STDIN>)) {
@@ -157,7 +155,7 @@ print "\n### HW1A gsawhne1 - OVERALL CORRECT: ", $sumcorrect, " = ";
 printf("%.1f", (($sumcorrect * 100) / ($sumcorrect + $sumincorrect)));
 print "%   INCORRECT: ", $sumincorrect, " = ";
 printf("%.1f", (($sumincorrect * 100) / ($sumcorrect + $sumincorrect)));
-print "%\n";
+print "%";
 
 
 
